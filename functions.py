@@ -6,34 +6,77 @@ import re
 
 def pwd(dir):
     try:
-        data = [i for i in os.listdir(dir)]
+        data = os.listdir(dir)
     except FileNotFoundError:
         data = []
     return data
 
 
-def copy_files(dir_from, dir_to, files_to_copy):
+def get_all_files1(dir):
+    b = {}
+    keys = []
+    for i in pwd(dir):
+        if not path.isfile(path.join(dir, i)):
+            continue
+        key = re.findall("\d{4}", i)
+        for k in key:
+            if k not in keys:
+                b[k] = []
+                keys.append(k)
+            b[k].append(i)
+
+    return b, keys
+
+
+def get_all_files(dir):
+    b = {}
+    keys = []
+    for i in pwd(dir):
+        if not path.isfile(path.join(dir, i)):
+            continue
+        key = re.findall("\d{4}", i)
+        for k in key:
+            if k not in keys:
+                b[k] = []
+                keys.append(k)
+            b[k].append(i)
+
+    return b, keys
+
+
+def operate_files(dir_from, dir_to, files, operation):
     if not path.exists(dir_from) or dir_from == dir_to:
         raise Exception
 
-    all_files = [(k[0], v) for k, v in
-                 [[re.findall("\d{4}", i), i] for i in pwd(dir_from) if path.isfile(path.join(dir_from, i))] if
-                 len(k) >= 1]
-    all_file_keys = [i[0] for i in all_files]
-    not_copied = []
-    copied = []
+    all_files, filenames_keys = get_all_files(dir_from)
+    not_found = []
+    operated = []
+    not_operated = []
     if not path.exists(dir_to):
         makedirs(dir_to)
-    for key in files_to_copy:
-        if key in all_file_keys:
-            file_names = [i[1] for i in all_files if i[0] == key]
+    for key in files:
+        if key in filenames_keys:
+            file_names = all_files[key]
             for file_name in file_names:
                 file_dir = path.join(dir_from, file_name)
-                copied.append(file_name)
-                shutil.copy2(file_dir, dir_to)
+                target_dir = path.join(dir_to, file_name)
+                if not path.exists(target_dir):
+                    operation(file_dir, dir_to)
+                    operated.append(file_name)
+                else:
+                    not_operated.append(file_name)
+
         else:
-            not_copied.append(key)
-    return len(not_copied) == 0, not_copied, copied
+            not_found.append(key)
+    return operated, not_operated, not_found
+
+
+def copy_files(dir_from, dir_to, files_to_copy):
+    return operate_files(dir_from, dir_to, files_to_copy, shutil.copy2)
+
+
+def move_files(dir_from, dir_to, files_to_move):
+    return operate_files(dir_from, dir_to, files_to_move, shutil.move)
 
 
 def read_file_data(filename):
